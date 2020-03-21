@@ -11,21 +11,18 @@ mod watchdog_daemon;
 
 fn main() {
 
+
     //load config, use flight defaults if no file, or parts missing
 
     //wait for boot to finish
 
     //get baseline ps and lshw
+    println!("Starting Daemon");
     
-    let ps_output_1 = watchdog_daemon::get_ps_output();
-
-    thread::sleep(time::Duration::from_millis(2000));
-
-    let ps_output_2 = watchdog_daemon::get_ps_output();
-
-    watchdog_daemon::process_ps_output(ps_output_1, ps_output_2);
+    watchdog_daemon::start_watchdog_daemon();
 
 
+    println!("Daemon Started!!!");
     //check # resets to see aliveness, compare against previous baselines, log diffs
     //update new baseline, # resets
 

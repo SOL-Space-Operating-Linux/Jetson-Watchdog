@@ -1,0 +1,11 @@
+
+#For the Jetson TX2/TX2i
+[target.aarch64-unknown-linux-gnu]
+
+#Linker based on yocto meta-toolchain
+#Requires . ./opt/poky/3.0.2/environment-setup-aarch64-poky-linux to be sourced before rust can be built
+linker = "aarch64-poky-linux-gcc"
+rustflags = [
+"-C", "link-arg=-march=armv8-a+crc",
+"-C", "link-arg=--sysroot=/opt/poky/3.0.2/sysroots/aarch64-poky-linux",
+]

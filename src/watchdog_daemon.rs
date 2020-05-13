@@ -3,8 +3,8 @@ extern crate difference;
 use std::process::Command;
 use std::io::{self, Write};
 use difference::{Difference, Changeset};
+// FIXME: decide whether to group these imports 
 use std::{thread, time};
-
 use std::fs::File;
 use std::fs::create_dir; // create_dir_all creates parents as well; can we assume /tmp/ exists on all platforms? If so, only use create_dir
 
@@ -21,11 +21,11 @@ static GLOBAL_VERIFICATION_WORD: AtomicU32 = AtomicU32::new(0x11111111);
 pub fn start_watchdog_daemon() {
 
 //create file (and parent directories, if they don't exist) 
-
-    let stdout = create_dir("/tmp/jetson/"); // fires if folder doesn't exist
+//TODO: Add error handling to these calls
+    let stdout = create_dir("/tmp/jetson/"); // only fires if folder doesn't exist
     let stdout = File::create("/tmp/jetson/daemon.out").unwrap();
     let stderr = File::create("/tmp/jetson/daemon.err").unwrap();
-
+//END TODO
 
     let daemonize = Daemonize::new()
         .pid_file("/tmp/jetson/test.pid") // Every method except `new` and `start`
@@ -47,12 +47,13 @@ pub fn start_watchdog_daemon() {
 }
 
 fn run_watchdog_loop() {
-
+// This section does a cursory check to see if a global variable is intact in memory.
     //check if Global word is 0x1111 1111
     if 0x11111111 != GLOBAL_VERIFICATION_WORD.load(Ordering::SeqCst) {
         println!("Register does not match, rebooting")
     }
 
+//Initialize some mutable variables to store outputs for comparison
     let mut lshw_boot_output:String = String::from("");
     let mut ps_boot_output:String = String::from("");
 
@@ -61,13 +62,13 @@ fn run_watchdog_loop() {
 
     loop {
         println!("Jetson Watchdog Looping");
-
+// This is an aliveness check for whether a sequential count has proceeded properly
         if 0x11111111 != GLOBAL_VERIFICATION_WORD.load(Ordering::SeqCst) {
             println!("Register does not match 0x1111 1111, rebooting")
         }
         GLOBAL_VERIFICATION_WORD.fetch_add(0x22222222, Ordering::SeqCst);
 
-
+// Retrieve and store output of PS and LS
         let ps_new_output = get_ps_output();
         let lshw_new_output = get_lshw_output();
 
@@ -84,7 +85,7 @@ fn run_watchdog_loop() {
         }
         GLOBAL_VERIFICATION_WORD.fetch_add(0x88888888, Ordering::SeqCst);
 
-
+// Wait two seconds and repeat
         thread::sleep(time::Duration::from_millis(2000));
 
         ps_old_output = ps_new_output;
@@ -106,7 +107,6 @@ fn run_watchdog_loop() {
 
     }
 
-    
 }
 
 
@@ -114,7 +114,7 @@ pub fn get_ps_output() -> String {
 
     let mut ps_cmd = Command::new("sh");
     let ps_output = ps_cmd.arg("-c")
-        .arg("ps axo pid,comm,ruser,pri,rtprio,stat,stackp,vsize,rss")
+        .arg("ps axo pid,comm,ruser,pri,rtprio,stat,stackp,vsize,rss | grep -v ps | grep -v systemd-journal | grep -v sh | grep -v grep")
         .output()
         .expect("process failed to execute");
     

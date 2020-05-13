@@ -6,15 +6,13 @@ use difference::{Difference, Changeset};
 use std::{thread, time};
 
 use std::fs::File;
+use std::fs::create_dir; // create_dir_all creates parents as well; can we assume /tmp/ exists on all platforms? If so, only use create_dir
 
 use daemonize::Daemonize;
-
 
 use std::sync::atomic::{AtomicU32, Ordering};
 
 static GLOBAL_VERIFICATION_WORD: AtomicU32 = AtomicU32::new(0x11111111);
-
-
 
 
 //static mut check_num::<u32> = 0x0000;
@@ -22,9 +20,12 @@ static GLOBAL_VERIFICATION_WORD: AtomicU32 = AtomicU32::new(0x11111111);
 
 pub fn start_watchdog_daemon() {
 
+//create file (and parent directories, if they don't exist) 
 
+    let stdout = create_dir("/tmp/jetson/"); // fires if folder doesn't exist
     let stdout = File::create("/tmp/jetson/daemon.out").unwrap();
     let stderr = File::create("/tmp/jetson/daemon.err").unwrap();
+
 
     let daemonize = Daemonize::new()
         .pid_file("/tmp/jetson/test.pid") // Every method except `new` and `start`

@@ -6,26 +6,24 @@ use difference::{Difference, Changeset};
 // FIXME: decide whether to group these imports 
 use std::{thread, time};
 use std::fs::File;
-use std::fs::create_dir; // create_dir_all creates parents as well; can we assume /tmp/ exists on all platforms? If so, only use create_dir
-
+use std::fs::create_dir;
+// end FIXME
 use daemonize::Daemonize;
-
 use std::sync::atomic::{AtomicU32, Ordering};
+#[path = "log_daemon.rs"]
+mod log_daemon;
 
 static GLOBAL_VERIFICATION_WORD: AtomicU32 = AtomicU32::new(0x11111111);
-
-
 //static mut check_num::<u32> = 0x0000;
-
 
 pub fn start_watchdog_daemon() {
 
 //create file (and parent directories, if they don't exist) 
-//TODO: Add error handling to these calls
-    let stdout = create_dir("/tmp/jetson/"); // only fires if folder doesn't exist
+//FIXME: Add error handling to these calls
+    let stdout = create_dir("/tmp/jetson/"); // only fires if folder doesn't exist, does not create parent directories
     let stdout = File::create("/tmp/jetson/daemon.out").unwrap();
     let stderr = File::create("/tmp/jetson/daemon.err").unwrap();
-//END TODO
+//end FIXME
 
     let daemonize = Daemonize::new()
         .pid_file("/tmp/jetson/test.pid") // Every method except `new` and `start`
@@ -97,13 +95,16 @@ fn run_watchdog_loop() {
         GLOBAL_VERIFICATION_WORD.store(0x11111111, Ordering::SeqCst);
 
 
-        //Look for kerenel errors/ SEE traces (log_daemon pipe)
+//Look for kerenel errors/ SEE traces (log_daemon pipe)
 
-        //Check hw against baseline
+        log_daemon::start_log_daemon();
 
-        //Check software against baseline
 
-        //kick dog
+//Check hw against baseline
+
+//Check software against baseline
+
+//kick dog
 
     }
 

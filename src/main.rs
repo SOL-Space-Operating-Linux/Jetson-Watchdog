@@ -5,7 +5,7 @@ use std::io::{self, Write};
 use difference::{Difference, Changeset};
 
 mod watchdog_daemon;
-
+mod log_daemon;
 
 //global check register
 
@@ -19,8 +19,8 @@ fn main() {
     //get baseline ps and lshw
     println!("Starting Daemon");
     
-    watchdog_daemon::start_watchdog_daemon();
-
+ //   watchdog_daemon::start_watchdog_daemon();
+    log_daemon::start_log_daemon();
 
     println!("Daemon Started!!!");
     //check # resets to see aliveness, compare against previous baselines, log diffs

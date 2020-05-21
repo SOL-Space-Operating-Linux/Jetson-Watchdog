@@ -42,8 +42,9 @@ pub fn start_log_daemon() {
         // println!("Error: {}\n", &cap[2]); // error only
 
         let mut error_type = cap.get(2).unwrap().as_str();
+        let mut timestamp = cap.get(1),unwrap().as_str(); // FIXME: can we process this as a string?
 
-        match error_type {
+        match error_type { // switch-case statement for processing each error
 
             "SBE ERR" => sbe_err_counter += 1,
             "SError detected" => serror_counter += 1,

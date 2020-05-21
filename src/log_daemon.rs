@@ -24,14 +24,22 @@ pub fn start_log_daemon() {
         .expect("Something went wrong reading the log");
   //  println!("The log reads:\n{}", contents); // this worked, which was our sanity check. 
     println!("log_daemon.rs called successfully"); 
-    let re = Regex::new(r"(\[\s?[0-9]+\.+[0-9]+\]) .+ (\w*SBE ERR\w*)").unwrap(); // leading r signifies a raw string
+    let re = Regex::new(r"(\[\s?[0-9]+\.+[0-9]+\]) .+ (\w*(SBE ERR|SError detected|CPU Memory Error|CCE Machine Check Error)\w*)").unwrap(); // leading r signifies a raw string
+    let mut sbe_err_counter = 0;
 
     for cap in re.captures_iter(&contents) {
 
-        println!("Found: {}", &cap[0]);   //whole expression
-        println!("Timestamp: {}", &cap[1]); 
-        println!("Error: {}", &cap[2])
+        println!("Found: {}", &cap[0]);   //whole expression from timestamp to error
+        println!("Timestamp: {}", &cap[1]); // timestamp only
+        println!("Error: {}\n", &cap[2]); // error only
+
+        let mut error_type = cap.get(1).unwrap().as_str();
+        if &cap[2] == "SBE ERR" {
+            sbe_err_counter += 1;
+            println!("Added 1 to sbe_err_counter, new count is {}", sbe_err_counter);
+        }
     }
+    println!("SBE ERR total: {}", sbe_err_counter);
 
 }
 

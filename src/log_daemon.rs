@@ -24,8 +24,9 @@ pub fn start_log_daemon() {
     let filename = "/home/voegtak1/a_log3.txt";
     let contents = fs::read_to_string(filename)
         .expect("Something went wrong reading the log");
-  //  println!("The log reads:\n{}", contents); // this worked, which was our sanity check. 
+
     let re = Regex::new(r"(\[\s+?[0-9]+\.+[0-9]+\]) .+ (\w*(SBE ERR|SError detected|CPU Memory Error|Machine Check Error|GPU L2| generated a mmu fault|SDHCI_INT_DATA_TIMEOUT|Timeout waiting for hardware interrupt|watchdog detected)\w*)").unwrap(); // leading r signifies a raw string
+    
     // Create empty, dynamic vectors to store error timestamps in for later processing.
         // FIXME: Vectors cannot be left to grow without bounds. Create a fixed length and a way of saving results if the length is exceeded.
     let mut all_errors_vec = Vec::new();
@@ -41,12 +42,13 @@ pub fn start_log_daemon() {
 
     for cap in re.captures_iter(&contents) {
 
-        // println!("Found: {}", &cap[0]);   //whole expression from timestamp to error
+        // println!("Found: {}", &cap[0]);   // whole expression from timestamp to error regex
         // println!("Timestamp: {}", &cap[1]); // timestamp only
         // println!("Error: {}\n", &cap[2]); // error only
 
         let mut error_type = cap.get(2).unwrap().as_str();
         let mut timestamp = cap.get(1).unwrap().as_str(); // FIXME: can we process this as a string?
+
         // save the timestamp on the global errors vector, then according the individual error type
         all_errors_vec.push(timestamp);
         match error_type { // switch-case statement for processing each error
@@ -70,10 +72,11 @@ pub fn start_log_daemon() {
     //     println!("{}", x);
     // }        // this was test code to make sure that the vector loaded correctly
 
+
     // Process timestamps to reduce the amount of total errors stored.
 
 
-    //Display error totals to stdout
+    // Display error totals to stdout
     println!("SBE ERR total: {}", sbe_err_vec.len());
     println!("Serror total: {}", serror_vec.len());
     println!("CPU Memory Error total: {}", cpu_mem_vec.len());

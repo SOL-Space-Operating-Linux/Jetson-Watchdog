@@ -26,8 +26,7 @@ pub fn start_log_daemon() {
   //  println!("The log reads:\n{}", contents); // this worked, which was our sanity check. 
     println!("log_daemon.rs called successfully"); 
     let re = Regex::new(r"(\[\s+?[0-9]+\.+[0-9]+\]) .+ (\w*(SBE ERR|SError detected|CPU Memory Error|Machine Check Error|GPU L2| generated a mmu fault|SDHCI_INT_DATA_TIMEOUT|Timeout waiting for hardware interrupt|watchdog detected)\w*)").unwrap(); // leading r signifies a raw string
-    
-    // FIXME: Collapse all of the counters into a length determination of the vectors. 
+    // Create vectors to store error timestamps in for later processing.
     let mut sbe_err_vec = Vec::new(); // initialize empty vector
     let mut serror_vec = Vec::new(); // initialize empty vector
     let mut cpu_mem_vec = Vec::new(); // initialize empty vector
@@ -47,8 +46,6 @@ pub fn start_log_daemon() {
         let mut error_type = cap.get(2).unwrap().as_str();
         let mut timestamp = cap.get(1).unwrap().as_str(); // FIXME: can we process this as a string?
 
-
-
         match error_type { // switch-case statement for processing each error
 
             "SBE ERR" =>                {sbe_err_vec.push(timestamp);},
@@ -61,16 +58,20 @@ pub fn start_log_daemon() {
             "Timeout waiting for hardware interrupt" => {flash_read_vec.push(timestamp);},
             "watchdog detected" =>      {watchdog_detected_vec.push(timestamp);},
             _ =>                         continue, // default case
-
         }
 
     }
-    println!("SBE ERR total: {}", sbe_err_vec.len());
     // println!("Length of sbe_err_vector: {}", sbe_err_vec.len());
     // println!("Contents of sbe_err_vector: ");
     // for x in &sbe_err_vec {
     //     println!("{}", x);
     // }        // this was test code to make sure that the vector loaded correctly
+
+    // Process timestamps to reduce the amount of total errors stored.
+
+
+    //Display error totals to stdout
+    println!("SBE ERR total: {}", sbe_err_vec.len());
     println!("Serror total: {}", serror_vec.len());
     println!("CPU Memory Error total: {}", cpu_mem_vec.len());
     println!("CCE Machine Check Error total: {}", cce_machine_vec.len());

@@ -10,7 +10,6 @@ use std::vec; //vectors
 
 pub fn start_log_daemon() {
 // This log watcher is going to be the most useful in an ACTUAL usecase, where the board is under assault. How to test this?
-// In working with preexisting logs, we are going to read the log to a string and then parse it. 
 
     // let mut log_watcher = LogWatcher::register("/var/log/kern.log".to_string()).unwrap();
     // println!("I got here!");
@@ -19,23 +18,26 @@ pub fn start_log_daemon() {
     //     println!("Line {}", line);
     // });
 
-//This reads from a file (currently, a hard-coded file) and parses it for expressions, then counts them.
-// FIXME: Make it a command line option, and read from kernel log if not stated
-    let contents = fs::read_to_string("/home/voegtak1/a_log3.txt")
+// In working with preexisting logs, we are going to read the log to a string and then parse it. 
+// This reads from a file (currently, a hard-coded file) and parses it for expressions, then counts them.
+    // FIXME: Make it a command line option, and read from kernel log if not stated
+    let filename = "/home/voegtak1/a_log3.txt";
+    let contents = fs::read_to_string(filename)
         .expect("Something went wrong reading the log");
   //  println!("The log reads:\n{}", contents); // this worked, which was our sanity check. 
-    println!("log_daemon.rs called successfully"); 
     let re = Regex::new(r"(\[\s+?[0-9]+\.+[0-9]+\]) .+ (\w*(SBE ERR|SError detected|CPU Memory Error|Machine Check Error|GPU L2| generated a mmu fault|SDHCI_INT_DATA_TIMEOUT|Timeout waiting for hardware interrupt|watchdog detected)\w*)").unwrap(); // leading r signifies a raw string
-    // Create vectors to store error timestamps in for later processing.
-    let mut sbe_err_vec = Vec::new(); // initialize empty vector
-    let mut serror_vec = Vec::new(); // initialize empty vector
-    let mut cpu_mem_vec = Vec::new(); // initialize empty vector
-    let mut cce_machine_vec = Vec::new(); // initialize empty vector
-    let mut gpu_l2_vec = Vec::new(); // initialize empty vector
-    let mut mmu_fault_vec = Vec::new(); // initialize empty vector
-    let mut flash_write_vec = Vec::new(); // initialize empty vector
-    let mut flash_read_vec = Vec::new(); // initialize empty vector
-    let mut watchdog_detected_vec = Vec::new(); // initialize empty vector
+    // Create empty, dynamic vectors to store error timestamps in for later processing.
+        // FIXME: Vectors cannot be left to grow without bounds. Create a fixed length and a way of saving results if the length is exceeded.
+    let mut all_errors_vec = Vec::new();
+    let mut sbe_err_vec = Vec::new();
+    let mut serror_vec = Vec::new();
+    let mut cpu_mem_vec = Vec::new(); 
+    let mut cce_machine_vec = Vec::new(); 
+    let mut gpu_l2_vec = Vec::new();
+    let mut mmu_fault_vec = Vec::new(); 
+    let mut flash_write_vec = Vec::new(); 
+    let mut flash_read_vec = Vec::new(); 
+    let mut watchdog_detected_vec = Vec::new(); 
 
     for cap in re.captures_iter(&contents) {
 
@@ -45,7 +47,8 @@ pub fn start_log_daemon() {
 
         let mut error_type = cap.get(2).unwrap().as_str();
         let mut timestamp = cap.get(1).unwrap().as_str(); // FIXME: can we process this as a string?
-
+        // save the timestamp on the global errors vector, then according the individual error type
+        all_errors_vec.push(timestamp);
         match error_type { // switch-case statement for processing each error
 
             "SBE ERR" =>                {sbe_err_vec.push(timestamp);},
@@ -80,4 +83,5 @@ pub fn start_log_daemon() {
     println!("Flash Write Error total: {}", flash_write_vec.len());
     println!("Flash Read Error total: {}",flash_read_vec.len());
     println!("Watchdog CPU Error total (detected): {}", watchdog_detected_vec.len());
+    println!("All errors: {}", all_errors_vec.len());
 }

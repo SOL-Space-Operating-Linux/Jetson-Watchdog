@@ -47,8 +47,9 @@ pub fn start_log_daemon() {
         // println!("Error: {}\n", &cap[2]); // error only
 
         let mut error_type = cap.get(2).unwrap().as_str();
-        let mut timestamp = cap.get(1).unwrap().as_str(); // FIXME: can we process this as a string?
-
+        let raw_timestamp = cap.get(1).unwrap().as_str().replace("[", "").replace("]", "").replace(" ", "");
+        let timestamp = raw_timestamp.parse::<f32>().unwrap(); // FIXME: can we process this as a string?
+        // let number_timestamp = timestamp.parse::<i32>().unwrap();
         // save the timestamp on the global errors vector, then according the individual error type
         all_errors_vec.push(timestamp);
         match error_type { // switch-case statement for processing each error
@@ -66,11 +67,11 @@ pub fn start_log_daemon() {
         }
 
     }
-    // println!("Length of sbe_err_vector: {}", sbe_err_vec.len());
-    // println!("Contents of sbe_err_vector: ");
-    // for x in &sbe_err_vec {
-    //     println!("{}", x);
-    // }        // this was test code to make sure that the vector loaded correctly
+    println!("Length of sbe_err_vector: {}", sbe_err_vec.len());
+    println!("Contents of sbe_err_vector: ");
+    for x in &sbe_err_vec {
+        println!("{}", x);
+    }        // this was test code to make sure that the vector loaded correctly
 
 
     // Process timestamps to reduce the amount of total errors stored.
@@ -87,4 +88,14 @@ pub fn start_log_daemon() {
     println!("Flash Read Error total: {}",flash_read_vec.len());
     println!("Watchdog CPU Error total (detected): {}", watchdog_detected_vec.len());
     println!("All errors: {}", all_errors_vec.len());
+
+    // let sbe_vec_iter = sbe_err_vec.iter(); //create an iterator for the sbe error vector
+    // let mut start_stamp = sbe_err_vec[0];
+    // let mut next_stamp = "";
+    // for val in sbe_vec_iter {
+        
+
+
+    // }
+    
 }

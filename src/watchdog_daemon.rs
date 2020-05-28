@@ -97,7 +97,7 @@ fn run_watchdog_loop() {
 
 //Look for kerenel errors/ SEE traces (log_daemon pipe)
 
-        log_daemon::start_log_daemon();
+       // log_daemon::start_log_daemon();
 
 
 //Check hw against baseline
@@ -132,7 +132,6 @@ pub fn process_ps_output(ps_output_1: &String, ps_output_2: &String) {
 
     let Changeset { diffs, .. } = Changeset::new(ps_output_1, ps_output_2, "\n");
 
-
     let mut same_count = 0;
     let mut add_count = 0;
     let mut rem_count = 0;
@@ -166,7 +165,6 @@ pub fn get_lshw_output() -> String {
         .arg("lshw")
         .output()
         .expect("process failed to execute");
-
         
     return String::from_utf8(lshw_output.stdout).unwrap();
 }
@@ -177,7 +175,6 @@ pub fn process_lshw_output(lshw_output_1: &String, lshw_output_2: &String) {
     //compare against previous list and add changeset to file
 
     let Changeset { diffs, .. } = Changeset::new(lshw_output_1, lshw_output_2, "\n");
-
 
     let mut same_count = 0;
     let mut add_count = 0;

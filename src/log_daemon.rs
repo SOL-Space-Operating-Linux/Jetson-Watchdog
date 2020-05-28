@@ -69,8 +69,30 @@ pub fn start_log_daemon() {
     }
     println!("Length of sbe_err_vector: {}", sbe_err_vec.len());
     println!("Contents of sbe_err_vector: ");
-    for x in &sbe_err_vec {
-        println!("{}", x);
+    sbe_err_vec.sort_by(|a,b| b.partial_cmp(a).unwrap()); // reverse the timestamps to make life easier 
+    let mut sbe_iter = sbe_err_vec.iter().enumerate(); // do I need an iterator object?
+    for (index, item) in  sbe_iter{ // loop over the vector using the iterator object, referring to index and contents
+        // println!("{}", x);
+        let end = item;
+        
+
+        while position < sbe_err_vec.len() {
+            sbe_err_vec.retain(|&item| (item - sbe_iter.peek() > 0.01));
+        }
+
+    /*
+    first:  take the first item
+            Is there a second item?
+                yes: take the second item
+                no: break
+            subtract it from the first item
+            Check the result
+                Is the result greater than X?
+                    No: Discard second item from vector, keep first item
+                    Yes: Second item becomes first item, continue
+
+    */
+
     }        // this was test code to make sure that the vector loaded correctly
 
 
@@ -88,14 +110,5 @@ pub fn start_log_daemon() {
     println!("Flash Read Error total: {}",flash_read_vec.len());
     println!("Watchdog CPU Error total (detected): {}", watchdog_detected_vec.len());
     println!("All errors: {}", all_errors_vec.len());
-
-    // let sbe_vec_iter = sbe_err_vec.iter(); //create an iterator for the sbe error vector
-    // let mut start_stamp = sbe_err_vec[0];
-    // let mut next_stamp = "";
-    // for val in sbe_vec_iter {
-        
-
-
-    // }
     
 }

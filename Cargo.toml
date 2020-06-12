@@ -10,3 +10,4 @@ edition = "2018"
 logwatcher = "0.1"
 difference = "2.0"
 daemonize =  "0.4.1"
+

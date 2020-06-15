@@ -13,7 +13,7 @@ do_on_exit(){
 trap 'do_on_exit' SIGINT
 
 arr[0]="SBE ERR"
-arr[1]="Serror Detected"
+arr[1]="SError detected"
 arr[2]="CPU Memory Error"
 arr[3]="Machine Check Error"
 arr[4]="GPU L2"

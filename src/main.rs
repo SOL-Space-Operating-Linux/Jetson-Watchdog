@@ -37,6 +37,7 @@ use difference::{Difference, Changeset};
 
 mod watchdog_daemon;
 mod log_daemon;
+mod public_logwatcher;
 
 //global check register
 
@@ -51,7 +52,7 @@ fn main() {
     println!("Starting Daemon");
     
  //   watchdog_daemon::start_watchdog_daemon();
-    log_daemon::start_log_daemon();
+    log_daemon::main();
 
     println!("Daemon Started!!!");
     //check # resets to see aliveness, compare against previous baselines, log diffs

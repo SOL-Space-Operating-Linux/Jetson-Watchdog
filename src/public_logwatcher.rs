@@ -1,5 +1,6 @@
 // This is a copy of the logwatcher crate: https://github.com/aravindavk/logwatcher/blob/master/src/lib.rs
 // The only change is that the Reader field is now public. 
+// This was a work in progress that has been abandoned
 
 use std::fs::File;
 use std::io;

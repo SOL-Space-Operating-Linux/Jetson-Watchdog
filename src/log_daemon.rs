@@ -33,7 +33,7 @@ pub fn main () {
     let mut flash_read_vec: Vec<f32> = Vec::new(); 
     let mut watchdog_detected_vec: Vec<f32> = Vec::new(); 
     // Create the regex
-    let re = Regex::new(r"(\[.?[0-9]+\.[0-9]+\])\s(SBE ERR|SError detected|CPU Memory Error|Machine Check Error|GPU L2|generated a mmu fault|SDHCI_INT_DATA_TIMEOUT|Timeout waiting for hardware interrupt|watchdog detected)").unwrap();
+    let re = Regex::new(r"(\[.?[0-9]+\.[0-9]+\])(.*?)(SBE ERR|SError detected|CPU Memory Error|Machine Check Error|GPU L2|generated a mmu fault|SDHCI_INT_DATA_TIMEOUT|Timeout waiting for hardware interrupt|watchdog detected)").unwrap();
     // Create the child process, which watches dmesg outputs change 
     let mut child = Command::new("dmesg")
         .arg("-w")
@@ -48,7 +48,10 @@ pub fn main () {
         for line in lines { 
             let mut our_string = line.unwrap().to_string(); // string type so we can run it through regex
             for cap in re.captures_iter(&our_string) {
-                let error_type = cap.get(2).unwrap().as_str(); // take the second argument of the regex, which is the error message
+                // println!("{}", cap.get(1).unwrap().as_str());
+                // println!("{}", cap.get(2).unwrap().as_str());
+                // println!("{}", cap.get(3).unwrap().as_str());
+                let error_type = cap.get(3).unwrap().as_str(); // take the second argument of the regex, which is the error message
                 let raw_timestamp = cap.get(1).unwrap().as_str().replace("[", "").replace("]", "").replace(" ", ""); // take the timestamp
                 let timestamp = raw_timestamp.parse::<f32>().unwrap(); // FIXME: can we process this as a string?
                 // save the timestamp on the global errors vector, then according the individual error type

@@ -16,3 +16,5 @@
 [ 1545.442078] ecc-err: EMC_ECC_ERR_ADDR = 0x40048302
 [ 1545.446925] ecc-err: D.X.R.B.C.S.L:0.2.0x483.4.0x100.0.0
 [ 1545.452311] ecc-err: SBE reported for read from HW scrubber
+[ 1546.452311] extra line
+[ 1547.452311] another line

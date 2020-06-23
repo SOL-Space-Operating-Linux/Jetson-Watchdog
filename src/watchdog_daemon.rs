@@ -1,7 +1,7 @@
 extern crate daemonize;
 extern crate difference;
 use std::process::Command;
-use std::io::{self, Write};
+
 use difference::{Difference, Changeset};
 // FIXME: decide whether to group these imports 
 use std::{thread, time};
@@ -20,7 +20,7 @@ pub fn start_watchdog_daemon() {
 
 //create file (and parent directories, if they don't exist) 
 //FIXME: Add error handling to these calls
-    let stdout = create_dir("/tmp/jetson/"); // only fires if folder doesn't exist, does not create parent directories
+    let _stdout = create_dir("/tmp/jetson/"); // only fires if folder doesn't exist, does not create parent directories
     let stdout = File::create("/tmp/jetson/daemon.out").unwrap();
     let stderr = File::create("/tmp/jetson/daemon.err").unwrap();
 //end FIXME
@@ -52,8 +52,8 @@ fn run_watchdog_loop() {
     }
 
 //Initialize some mutable variables to store outputs for comparison
-    let mut lshw_boot_output:String = String::from("");
-    let mut ps_boot_output:String = String::from("");
+    let _lshw_boot_output:String = String::from("");
+    let _ps_boot_output:String = String::from("");
 
     let mut lshw_old_output:String = String::from("");
     let mut ps_old_output:String = String::from("");
@@ -138,7 +138,7 @@ pub fn process_ps_output(ps_output_1: &String, ps_output_2: &String) {
 
     for i in 0..diffs.len() {
         match diffs[i] {
-            Difference::Same(ref x) => {
+            Difference::Same(ref _x) => {
                 //println!("SAME {}", x);
                 same_count = same_count + 1;
             }
@@ -182,7 +182,7 @@ pub fn process_lshw_output(lshw_output_1: &String, lshw_output_2: &String) {
 
     for i in 0..diffs.len() {
         match diffs[i] {
-            Difference::Same(ref x) => {
+            Difference::Same(ref _x) => {
                 //println!("SAME {}", x);
                 same_count = same_count + 1;
             }

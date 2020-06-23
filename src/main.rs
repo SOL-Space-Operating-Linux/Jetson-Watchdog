@@ -1,12 +1,8 @@
 extern crate difference;
-use std::{thread, time};
-use std::process::Command;
-use std::io::{self, Write};
-use difference::{Difference, Changeset};
-
 mod watchdog_daemon;
-mod log_daemon;
-mod public_logwatcher;
+mod log_daemon; // Our implementation of a dmesg watcher
+
+// USAGE: sudo ~/jetson-watchdog
 
 //global check register
 

@@ -15,8 +15,8 @@ do_on_exit(){
 trap 'do_on_exit' SIGINT
 
 filename="$1" # accept filename of log from command line
-REGEXP="\[ +?[[:digit:]]{3,15}\.[[:digit:]]{5,15}\]*" # .?[[:digit:]]*\.[[:digit:]]*\]"
-REGEXPNOBRACKET="[[:digit:]]{3,15}\.[[:digit:]]{5,15}*"
+REGEXP="\[[\s]{0,4}[[:digit:]]{0,15}\.[[:digit:]]{5,15}\]*" # .?[[:digit:]]*\.[[:digit:]]*\]"
+REGEXPNOBRACKET="[[:digit:]]{0,15}\.[[:digit:]]{5,15}"
 firstline=$(head -n 1 $1)
 
 [[ "$firstline" =~ $REGEXP ]]
@@ -42,7 +42,7 @@ while IFS= read -r line || [[ -n "$line" ]]; do #  on every line, do this
                 $waittime = 0.01
             fi
             firsttime=$timestamp
-            # sleep ${waittime}s
+            sleep ${waittime}s
             echo $line | sed "s/..$timestamp.//g" > /dev/kmsg # this line needs to be stripped of its timestamp before it goes into dmesg
             # echo $line
             # echo $line | sed "s/..$timestamp.//g"

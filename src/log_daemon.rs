@@ -17,7 +17,6 @@ use std::fs; //accessing files
 use std::process::{Command, Stdio};
 use std::io::{BufRead, BufReader};
 use std::sync::Arc;
-use shared_child::SharedChild; 
 
 pub fn main () {
     // Create empty, dynamic vectors to store error timestamps in for later processing.

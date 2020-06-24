@@ -60,7 +60,6 @@ fn main() {
     //start logging daemon
     log_daemon::main(); // TODO: change the main from main? Get return value from dmesg loop, be able to relaunch on failure
     //TODO: Set up channels, send the receiver over to log_daemon to communicate back
-    //
 
 //COPIED FROM LOG_DAEMON FOR REUSE WITH CHANNELS---------------------------------------------    
     // let error_type = cap.get(3).unwrap().as_str(); // take the third argument of the regex, which is the error message

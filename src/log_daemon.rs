@@ -78,15 +78,14 @@ pub fn main () {
                 println!("Flash Read Error total: {}",flash_read_vec.len());
                 println!("Watchdog CPU Error total (detected): {}", watchdog_detected_vec.len());
                 println!("All errors: {}", all_errors_vec.len());
-                // println!("Process ID is: {}", dmesg_child.id());
             }       
-        } // end of line processing, this is an infinite loop
+        } // end of line processing
         // If child dies, kill this loop
 // TODO: Shutdown and return a signal to main to relaunch this! 
         match dmesg_child.try_wait() {
             Ok(Some(status)) => {println!("exited with: {}", status); break;},
             Ok(None) => break,
-            Err(e) => {println!("error attempting to wait: {}", e); return;},
+            Err(e) => {println!("error attempting to wait: {}", e); break;}, // is 'return' better than 'break'?
         }
     } // end of while
 

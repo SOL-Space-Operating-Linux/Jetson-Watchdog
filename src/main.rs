@@ -12,6 +12,7 @@ use regex::Regex;
 use crossbeam_channel::unbounded;
 use nix::sys::wait::waitpid;
 use nix::unistd::{fork, getpid, getppid, ForkResult};
+use std::process::{Command, Stdio};
 
 // USAGE: sudo ~/jetson-watchdog
 
@@ -81,9 +82,24 @@ fn main() {
     //Set up channels, send the receiver over to log_daemon to communicate back
     let (s, receiver) = unbounded();
     let sender = s.clone(); // clone the sender to send off to the thread
+
+    let mut dmesg_child = match Command::new("dmesg")
+    .arg("-w")
+    .stdout(Stdio::piped())
+    .spawn()
+    // .expect("Unable to spawn dmesg child program")
+    {
+        Ok(child) => child,
+        Err(_) => {
+            println!("Failed to create the dmesg child");
+            return; // head home early 
+        }
+    };
+
+
     // TODO: capture OS failure to create the thread 
     let mut logdaemon_handle = builder.spawn(move || {
-        log_daemon::startup(sender); // a separate thread launches this. 
+        log_daemon::startup(sender, &mut dmesg_child); // a separate thread launches this. 
     }).unwrap();
 
     // Create the regex for local parse and sort use 
@@ -134,12 +150,12 @@ fn main() {
             // This works, but needs a way to not double-count all of the timestamps. 
             // TODO: Make a cleanup function. 
             println!("Dmesg thread despawned. Relaunching...");
-            logdaemon_handle.join().unwrap(); // kill the previous thread
-            let sender = s.clone(); // clone the sender again
+            // logdaemon_handle.join().unwrap(); // kill the previous thread
+            // let sender = s.clone(); // clone the sender again
             // respawn log_daemon with a fresh sender, which will restart dmesg 
-            logdaemon_handle = thread::spawn(move || {
-                log_daemon::startup(sender); // a separate thread launches this. 
-            });
+            // logdaemon_handle = thread::spawn(move || {
+            //     log_daemon::startup(sender, &mut dmesg_child); // a separate thread launches this. 
+            // });
 
         }
     

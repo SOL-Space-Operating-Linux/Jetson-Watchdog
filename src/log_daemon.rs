@@ -20,7 +20,7 @@ use crossbeam_channel::unbounded;
 use std::sync::Arc;
 use std::process;
 
-pub fn startup (dmesg_sender: crossbeam_channel::Sender<String>) {
+pub fn startup (dmesg_sender: crossbeam_channel::Sender<String>, dmesg_child: &mut std::process::Child) {
     // for debugging
     println!("log_daemon's pid is {}", process::id());
 
@@ -28,13 +28,22 @@ pub fn startup (dmesg_sender: crossbeam_channel::Sender<String>) {
     let re = Regex::new(r"(\[.?[0-9]+\.[0-9]+\])(.*?)(SBE ERR|SError detected|CPU Memory Error|Machine Check Error|GPU L2|generated a mmu fault|SDHCI_INT_DATA_TIMEOUT|Timeout waiting for hardware interrupt|watchdog detected)").unwrap();
     // Create an error string that Main will detect if dmesg child shuts down. 
     // Create the child process, which watches dmesg outputs change 
-    let mut dmesg_child = Command::new("dmesg")
-        .arg("-w")
-        .stdout(Stdio::piped())
-        .spawn()
-        .expect("Unable to spawn dmesg child program");
-
+    // let mut dmesg_child = match Command::new("dmesg")
+    //     .arg("-w")
+    //     .stdout(Stdio::piped())
+    //     .spawn()
+    //     // .expect("Unable to spawn dmesg child program")
+    //     {
+    //         Ok(child) => child,
+    //         Err(_) => {
+    //             println!("Failed to create the dmesg child");
+    //             return; // head home early 
+    //         }
+    //     };
+    
     // MAIN LOOP: read the child's stdout buffer forever, and process. 
+    // loop {
+    //     let stdout = dmesg_child.stdout;
     while let Some(ref mut stdout) = dmesg_child.stdout { // while there is something in child's stdout pipe
         let lines = BufReader::new(stdout).lines();
         for line in lines { 

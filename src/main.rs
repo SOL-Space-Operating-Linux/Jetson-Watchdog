@@ -3,20 +3,59 @@ extern crate difference;
 #[macro_use]
 extern crate crossbeam_channel;
 extern crate regex;
+extern crate serde_json;
 mod watchdog_daemon;
 mod log_daemon; // Our implementation of a dmesg watcher
-use chrono::{Datelike, Timelike, Utc};
-use std::thread;
+use serde_json::json;
 
 use regex::Regex;
 use crossbeam_channel::unbounded;
-use nix::sys::wait::waitpid;
-use nix::unistd::{fork, getpid, getppid, ForkResult};
+use chrono::{Datelike, Timelike, Utc};
+use std::{thread, time};
 use std::process::{Command, Stdio};
+// use nix::sys::wait::waitpid;
+// use nix::unistd::{fork, getpid, getppid, ForkResult};
+
 
 // USAGE: sudo ~/jetson-watchdog
 
 //global check register
+
+// struct Error_Timestamps { // internal components of struct are private even if struct is public 
+//     pub all_errors_vec: Vec<f32>,
+//     pub sbe_err_vec: Vec<f32>,
+//     pub serror_vec: Vec<f32>,
+//     pub cpu_mem_vec: Vec<f32>, 
+//     pub cce_machine_vec: Vec<f32>, 
+//     pub gpu_l2_vec: Vec<f32>,
+//     pub mmu_fault_vec: Vec<f32>, 
+//     pub flash_write_vec: Vec<f32>, 
+//     pub flash_read_vec: Vec<f32>,
+//     pub watchdog_detected_vec: Vec<f32> 
+// }
+
+// impl Error_Timestamps {
+//     pub fn new() -> Error_Timestamps {
+
+//     }
+// }
+
+/*Function that returns the first element of a vector without destroying it*/
+fn first<T>(v: &Vec<T>) -> Option<&T> {
+    v.first()
+}
+fn last<T>(v: &Vec<T>) -> Option<&T> {
+    v.last()
+}
+/*Function to be called on a thread that sleeps for one second and then sends a message to the receiver */
+fn taskmaster_thread(sender: crossbeam_channel::Sender<String>) {
+    let message = "Timer interrupt";
+    let one_second = time::Duration::from_millis(1000);
+    loop {
+        thread::sleep(one_second);
+        sender.try_send(message.to_string()).unwrap();
+    }
+}
 
 fn main() {
 
@@ -77,40 +116,51 @@ fn main() {
     let mut flash_write_vec: Vec<f32> = Vec::new(); 
     let mut flash_read_vec: Vec<f32> = Vec::new(); 
     let mut watchdog_detected_vec: Vec<f32> = Vec::new(); 
-    // Set up thread builder; this will let us capture an io::Result if the OS fails to create it
-    let builder = thread::Builder::new();
     //Set up channels, send the receiver over to log_daemon to communicate back
     let (s, receiver) = unbounded();
+
+/* This portion of the program creates the dmesg -w thread and then spawns a process, log_daemon, which watches that thread*/
+
+    // Set up thread builder; this will let us capture an io::Result if the OS fails to create it
+    let dmesg_builder = thread::Builder::new();
     let sender = s.clone(); // clone the sender to send off to the thread
-
+        // TODO: capture OS failure to create the thread 
     let mut dmesg_child = match Command::new("dmesg")
-    .arg("-w")
-    .stdout(Stdio::piped())
-    .spawn()
-    // .expect("Unable to spawn dmesg child program")
-    {
-        Ok(child) => child,
-        Err(_) => {
-            println!("Failed to create the dmesg child");
-            return; // head home early 
-        }
-    };
-
-
-    // TODO: capture OS failure to create the thread 
-    let mut logdaemon_handle = builder.spawn(move || {
+        .arg("-w")
+        .stdout(Stdio::piped())
+        .spawn()
+        {
+            Ok(child) => child,
+            Err(_) => {
+                println!("Failed to create the dmesg child");
+                return; // head home early 
+            }
+        };
+    let mut logdaemon_handle = dmesg_builder.spawn(move || {
         log_daemon::startup(sender, &mut dmesg_child); // a separate thread launches this. 
+    }).unwrap();
+
+// Create a thread which serves as the heartbeat, sleeping and then periodically sending a message
+    let interrupt_builder = thread::Builder::new();
+    let interrupt_sender = s.clone(); // clone the sender to send off to the thread
+    let taskmaster_timer = interrupt_builder.spawn(move || {
+        taskmaster_thread(interrupt_sender);
     }).unwrap();
 
     // Create the regex for local parse and sort use 
     let re = Regex::new(r"(\[.?[0-9]+\.[0-9]+\])(.*?)(SBE ERR|SError detected|CPU Memory Error|Machine Check Error|GPU L2|generated a mmu fault|SDHCI_INT_DATA_TIMEOUT|Timeout waiting for hardware interrupt|watchdog detected)").unwrap();
-// TODO: This needs to return some value to show that it, or dmesg, died. 
-    loop { 
-        // let our_string: String = receiver.recv().unwrap_or("Dmesg lost".to_owned()).to_string(); // string type so we can run it through regex
 
-        let our_string = receiver.recv().unwrap().to_string();
-        println!("Main received: {}", our_string);
-        if !our_string.eq("Lost dmesg process") { 
+    // Launch the taskmaster thread, which will tell our main thread when it should analyze data and put it away
+
+    // TODO: This needs to return some value to show that it, or dmesg, died. 
+    loop { 
+        let our_string = receiver.recv().unwrap().to_string(); // this blocks until there is a message on the channel.
+        // println!("Main received: {}", our_string);
+
+        if our_string.eq("Timer interrupt") {
+            println!("Time interrupt detected!");
+        }
+        else if !our_string.eq("Lost dmesg process") && !our_string.eq("Timer interrupt"){ 
             for cap in re.captures_iter(&our_string) {
                 // println!("{}", cap.get(1).unwrap().as_str());
                 // println!("{}", cap.get(2).unwrap().as_str());
@@ -143,19 +193,37 @@ fn main() {
                 // println!("Flash Read Error total: {}",flash_read_vec.len());
                 println!("Watchdog CPU Error total (detected): {}", watchdog_detected_vec.len());
                 println!("All errors: {}", all_errors_vec.len());
+                // println!("{}", serde_json::encode(&watchdog_detected_vec));
+
+
+
+            // When the program times out
+
+            println!("First item in watchdog queue: {}", first(&watchdog_detected_vec).unwrap());
+            println!("Last item in watchdog queue: {}", last(&watchdog_detected_vec).unwrap() );
             }
     
         }
         else {
             // This works, but needs a way to not double-count all of the timestamps. 
             // TODO: Make a cleanup function. 
-            println!("Dmesg thread despawned. Relaunching...");
-            // logdaemon_handle.join().unwrap(); // kill the previous thread
-            // let sender = s.clone(); // clone the sender again
-            // respawn log_daemon with a fresh sender, which will restart dmesg 
-            // logdaemon_handle = thread::spawn(move || {
-            //     log_daemon::startup(sender, &mut dmesg_child); // a separate thread launches this. 
-            // });
+
+            println!("Lost log_daemon. Relaunching...");
+            // match dmesg_child.try_wait() {
+            //     Ok(Some(status)) => {println!("exited with: {}", status);             // respawn log_daemon with a fresh sender, which will restart dmesg 
+            //                             // logdaemon_handle.join();
+            //                             // logdaemon_handle = thread::spawn(move || {
+            //                             // log_daemon::startup(sender, &mut dmesg_child); // a separate thread launches this. 
+            //                             // })
+            //                         },             // respawn log_daemon with a fresh sender, which will restart dmesg 
+            //     Ok(None) => break,
+            //     Err(e) =>           {println!("error attempting to wait: {}", e);  
+            //                             // logdaemon_handle.join(); 
+            //                             // logdaemon_handle = thread::spawn(move || {
+            //                             // log_daemon::startup(sender, &mut dmesg_child); // a separate thread launches this. 
+            //                             // });
+            //                         break;}, // is 'return' better than 'break'?
+            // }
 
         }
     

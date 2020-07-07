@@ -9,10 +9,7 @@ Supercomputing in Space IRAD
 
 extern crate regex;
 use regex::Regex;
-//for preexisting logs
-// use std::env;
 use std::fs; //accessing files
-// use std::vec; //vectors
 // -----------
 use std::process::{Command, Stdio};
 use std::io::{BufRead, BufReader};
@@ -24,26 +21,10 @@ pub fn startup (dmesg_sender: crossbeam_channel::Sender<String>, dmesg_child: &m
     // for debugging
     println!("log_daemon's pid is {}", process::id());
 
-    // Create the regex
+    // Create the regex to detect errors of interest in dmesg chatter 
     let re = Regex::new(r"(\[.?[0-9]+\.[0-9]+\])(.*?)(SBE ERR|SError detected|CPU Memory Error|Machine Check Error|GPU L2|generated a mmu fault|SDHCI_INT_DATA_TIMEOUT|Timeout waiting for hardware interrupt|watchdog detected)").unwrap();
-    // Create an error string that Main will detect if dmesg child shuts down. 
-    // Create the child process, which watches dmesg outputs change 
-    // let mut dmesg_child = match Command::new("dmesg")
-    //     .arg("-w")
-    //     .stdout(Stdio::piped())
-    //     .spawn()
-    //     // .expect("Unable to spawn dmesg child program")
-    //     {
-    //         Ok(child) => child,
-    //         Err(_) => {
-    //             println!("Failed to create the dmesg child");
-    //             return; // head home early 
-    //         }
-    //     };
     
     // MAIN LOOP: read the child's stdout buffer forever, and process. 
-    // loop {
-    //     let stdout = dmesg_child.stdout;
     while let Some(ref mut stdout) = dmesg_child.stdout { // while there is something in child's stdout pipe
         let lines = BufReader::new(stdout).lines();
         for line in lines { 

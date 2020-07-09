@@ -23,18 +23,28 @@ use std::process::{Command, Stdio};
 // USAGE: sudo ~/jetson-watchdog
 
 //global check register
-#[derive(Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 struct Error_Timestamps { // internal components of struct are private even if struct is public 
-    pub all_errors_vec: Vec<f32>,
-    pub sbe_err_vec: Vec<f32>,
-    pub serror_vec: Vec<f32>,
-    pub cpu_mem_vec: Vec<f32>, 
-    pub cce_machine_vec: Vec<f32>, 
-    pub gpu_l2_vec: Vec<f32>,
-    pub mmu_fault_vec: Vec<f32>, 
-    pub flash_write_vec: Vec<f32>, 
-    pub flash_read_vec: Vec<f32>,
-    pub watchdog_detected_vec: Vec<f32> 
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub all_errors_vec: Option<Vec<f32>>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub sbe_err_vec: Option<Vec<f32>>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub serror_vec: Option<Vec<f32>>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub cpu_mem_vec: Option<Vec<f32>>, 
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub cce_machine_vec: Option<Vec<f32>>, 
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub gpu_l2_vec: Option<Vec<f32>>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub mmu_fault_vec: Option<Vec<f32>>, 
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub flash_write_vec: Option<Vec<f32>>, 
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub flash_read_vec: Option<Vec<f32>>,
+    #[serde(skip_serializing_if="Option::is_none")]
+    pub watchdog_detected_vec: Option<Vec<f32>> 
 }
 
 // impl Error_Timestamps {
@@ -65,16 +75,43 @@ fn last<T>(v: &Vec<T>) -> Option<&T> {
     }
 
 }
+// fn get_first_and_last<T>(v: &Vec<T>) -> Option<&T> {
+//     if !v.is_empty() {
+//         v.push(serde::export::Some(first(&v)).unwrap();
+//         if v.len().unwrap() != 1 {
+//             v.push(serde::export::Some(last(&v).unwrap());
+//         }
+//     }
+//     serde::export::Some(v);
+
+// }
 /* Function that merges two structs, with the second struct overriding the first if there's a conflict */
-fn merge(a: &mut Value, b: Value) {
+fn merge(a: &mut Value, b: &Value) {
     match (a, b) {
-        (a @ &mut Value::Object(_), Value::Object(b)) => {
-            let a = a.as_object_mut().unwrap();
+    
+        (&mut Value::Object(ref mut a), &Value::Object(ref b)) => {  // If there are objects in both, then clone a's key and send a call to recurse
+        
             for (k, v) in b {
-                merge(a.entry(k).or_insert(Value::Null), v);
+                merge(a.entry(k.clone()).or_insert(Value::Null), v);
             }
         }
-        (a, b) => *a = b,
+        (a, b) => { // upon recursing, if a has that key, then it receives a copy of b's 
+            // *a = b.clone(); //original
+            let mut a_vec: Vec<_> = vec![a.clone()].as_slice().to_vec();
+            let mut b_vec: Vec<_> = vec![b.clone()].as_slice().to_vec();
+            
+            if a.is_array() {
+                a_vec = a.as_array().unwrap().to_vec();
+            }
+            if b.is_array() {
+                b_vec = b.as_array().unwrap().to_vec();
+            }
+            if !b_vec.is_null(){
+                a_vec.append(&mut b_vec); //works but not completely
+                *a = serde_json::to_value(a_vec).unwrap();
+            }
+            // *a = serde_json::to_value(a_vec).unwrap();
+        }
     }
 }
 /*Function to be called on a thread that sleeps for one second and then sends a message to the receiver */
@@ -94,10 +131,10 @@ fn main() {
         let now = Utc::now();
         let (is_common_era, year) = now.year_ce();
         let todays_date = 
-            format!("{}-{}-{:0>2}", 
-                year.to_string(),
-                now.month().to_string(),
-                now.day().to_string());
+        format!("{}-{:0>2}-{:0>2}.json", 
+            year.to_string(),
+            now.month().to_string(),
+            now.day().to_string());
         // open today's file, creating it if it doesn't exist
         let file = fs::OpenOptions::new()
                 .read(true)
@@ -184,29 +221,33 @@ fn main() {
         // println!("Main received: {}", our_string);
         if our_string.eq("Timer interrupt") {
             println!("Time interrupt detected!");
-            println!("First item in watchdog queue: {}", first(&watchdog_detected_vec).unwrap());
-            println!("Last item in watchdog queue: {}", last(&watchdog_detected_vec).unwrap() );
-
-            println!("Time elapsed: {:?}", sys_time.elapsed().unwrap());
+            println!("First item in watchdog queue: {:?}", first(&watchdog_detected_vec));
+            println!("Last item in watchdog queue: {:?}", last(&watchdog_detected_vec));
             // create a json object using the first and last contents of all of these vectors
-            let new_json = json!({
-                "SBE ERR": [first(&sbe_err_vec), last(&sbe_err_vec)],
-                "SError detected" : [first(&serror_vec), last(&serror_vec)],
-                "CPU Memory Error": [first(&cpu_mem_vec), last(&cpu_mem_vec)],
-                "Machine Check Error": [first(&cce_machine_vec), last(&cce_machine_vec)],
-                "GPU L2": [first(&gpu_l2_vec), last(&gpu_l2_vec)],
-                "generated a mmu fault": [first(&mmu_fault_vec), last(&mmu_fault_vec)],
-                "SDHCI_INT_DATA_TIMEOUT": [first(&flash_write_vec), last(&flash_write_vec)],
-                "Timeout waiting for hardware interrupt": [first(&flash_read_vec), last(&flash_read_vec)],
-                "watchdog detected":[first(&watchdog_detected_vec)., last(&watchdog_detected_vec)]
+            let mut new_json = json!({
+                "all_errors_vec": [first(&all_errors_vec), last(&all_errors_vec)],
+                "sbe_err_vec": [first(&sbe_err_vec), last(&sbe_err_vec)],
+                "serror_vec" : [first(&serror_vec), last(&serror_vec)],
+                "cpu_mem_vec": [first(&cpu_mem_vec), last(&cpu_mem_vec)],
+                "cce_machine_vec": [first(&cce_machine_vec), last(&cce_machine_vec)],
+
+                "gpu_l2_vec": [first(&gpu_l2_vec), last(&gpu_l2_vec)],
+
+                "mmu_fault_vec": [first(&mmu_fault_vec), last(&mmu_fault_vec)],
+
+                "flash_write_vec": [first(&flash_write_vec), last(&flash_write_vec)],
+
+                "flash_read_vec": [first(&flash_read_vec), last(&flash_read_vec)],
+
+                "watchdog_detected_vec":[first(&watchdog_detected_vec), last(&watchdog_detected_vec)]
             });
-            println!("{:#}", new_json);
+            // println!("{:#}", new_json);
             //load the previous json object from a file, if it exists
             let mut file = fs::OpenOptions::new()
                 .create(true)
                 .write(true)
                 .read(true)
-                .open("testfile.txt")
+                .open("test.json")
                 .expect("Unable to open file");
 
             let mut file_as_string = String::new();
@@ -218,20 +259,29 @@ fn main() {
 
             } 
             else{ 
+            // call merge() on the two json objects, with the file_json being the first argument, and the new json being the second
                 let mut file_json = serde_json::from_str(&file_as_string).unwrap(); 
                 println!("JSON in the file was {:#?}", file_json);
-                merge(&mut file_json, new_json);
+                merge(&mut file_json, &new_json);
+                new_json = file_json;
             }
 
-            // call merge() on the two json objects, with the file_json being the first argument, and the new json being the second
+            let json: String = serde_json::to_string(&new_json).unwrap();
+            // write out to the file-- destroy the old contents?            
+            fs::write("test.json", &json).expect("Unable to write to file");
+            println!("Time elapsed: {:?}", sys_time.elapsed().unwrap());
 
-            // merge(&mut file_json, new_json);
-            // write out to the file-- destroy the old contents?
             // clear the vectors
-            // somevector.clear();
-            //close the file
-            // file.close(); ???
-
+            all_errors_vec.clear();
+            sbe_err_vec.clear();
+            serror_vec.clear();
+            cpu_mem_vec.clear();
+            cce_machine_vec.clear();
+            gpu_l2_vec.clear();
+            mmu_fault_vec.clear();
+            flash_write_vec.clear();
+            flash_read_vec.clear();
+            watchdog_detected_vec.clear();
         }
         else if !our_string.eq("Lost dmesg process") && !our_string.eq("Timer interrupt"){ 
             for cap in re.captures_iter(&our_string) {

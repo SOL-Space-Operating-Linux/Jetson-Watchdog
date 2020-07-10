@@ -23,29 +23,30 @@ use std::process::{Command, Stdio};
 // USAGE: sudo ~/jetson-watchdog
 
 //global check register
-#[derive(Serialize, Deserialize, Clone, Debug)]
-struct Error_Timestamps { // internal components of struct are private even if struct is public 
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub all_errors_vec: Option<Vec<f32>>,
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub sbe_err_vec: Option<Vec<f32>>,
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub serror_vec: Option<Vec<f32>>,
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub cpu_mem_vec: Option<Vec<f32>>, 
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub cce_machine_vec: Option<Vec<f32>>, 
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub gpu_l2_vec: Option<Vec<f32>>,
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub mmu_fault_vec: Option<Vec<f32>>, 
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub flash_write_vec: Option<Vec<f32>>, 
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub flash_read_vec: Option<Vec<f32>>,
-    #[serde(skip_serializing_if="Option::is_none")]
-    pub watchdog_detected_vec: Option<Vec<f32>> 
-}
+
+// #[derive(Serialize, Deserialize, Clone, Debug)]
+// struct Error_Timestamps { // internal components of struct are private even if struct is public 
+//     #[serde(skip_serializing_if="Option::is_none")]
+//     pub all_errors_vec: Option<Vec<f32>>,
+//     #[serde(skip_serializing_if="Option::is_none")]
+//     pub sbe_err_vec: Option<Vec<f32>>,
+//     #[serde(skip_serializing_if="Option::is_none")]
+//     pub serror_vec: Option<Vec<f32>>,
+//     #[serde(skip_serializing_if="Option::is_none")]
+//     pub cpu_mem_vec: Option<Vec<f32>>, 
+//     #[serde(skip_serializing_if="Option::is_none")]
+//     pub cce_machine_vec: Option<Vec<f32>>, 
+//     #[serde(skip_serializing_if="Option::is_none")]
+//     pub gpu_l2_vec: Option<Vec<f32>>,
+//     #[serde(skip_serializing_if="Option::is_none")]
+//     pub mmu_fault_vec: Option<Vec<f32>>, 
+//     #[serde(skip_serializing_if="Option::is_none")]
+//     pub flash_write_vec: Option<Vec<f32>>, 
+//     #[serde(skip_serializing_if="Option::is_none")]
+//     pub flash_read_vec: Option<Vec<f32>>,
+//     #[serde(skip_serializing_if="Option::is_none")]
+//     pub watchdog_detected_vec: Option<Vec<f32>> 
+// }
 
 // impl Error_Timestamps {
 //     pub fn new() -> Error_Timestamps {
@@ -106,8 +107,9 @@ fn merge(a: &mut Value, b: &Value) {
             if b.is_array() {
                 b_vec = b.as_array().unwrap().to_vec();
             }
-            if !b_vec.is_null(){
+            if !b.is_null(){
                 a_vec.append(&mut b_vec); //works but not completely
+                a_vec.dedup();
                 *a = serde_json::to_value(a_vec).unwrap();
             }
             // *a = serde_json::to_value(a_vec).unwrap();
@@ -230,15 +232,10 @@ fn main() {
                 "serror_vec" : [first(&serror_vec), last(&serror_vec)],
                 "cpu_mem_vec": [first(&cpu_mem_vec), last(&cpu_mem_vec)],
                 "cce_machine_vec": [first(&cce_machine_vec), last(&cce_machine_vec)],
-
                 "gpu_l2_vec": [first(&gpu_l2_vec), last(&gpu_l2_vec)],
-
                 "mmu_fault_vec": [first(&mmu_fault_vec), last(&mmu_fault_vec)],
-
                 "flash_write_vec": [first(&flash_write_vec), last(&flash_write_vec)],
-
                 "flash_read_vec": [first(&flash_read_vec), last(&flash_read_vec)],
-
                 "watchdog_detected_vec":[first(&watchdog_detected_vec), last(&watchdog_detected_vec)]
             });
             // println!("{:#}", new_json);
@@ -259,16 +256,17 @@ fn main() {
 
             } 
             else{ 
+                let cleaned_file_string: String = file_as_string.replace("null,", "").replace("null", "").replace(",]", "]");
             // call merge() on the two json objects, with the file_json being the first argument, and the new json being the second
-                let mut file_json = serde_json::from_str(&file_as_string).unwrap(); 
+                let mut file_json = serde_json::from_str(&cleaned_file_string).expect("Unable to write to file"); 
                 println!("JSON in the file was {:#?}", file_json);
                 merge(&mut file_json, &new_json);
                 new_json = file_json;
             }
 
-            let json: String = serde_json::to_string(&new_json).unwrap();
+            let mut json = serde_json::to_value(&new_json).unwrap();
             // write out to the file-- destroy the old contents?            
-            fs::write("test.json", &json).expect("Unable to write to file");
+            fs::write("test.json", serde_json::to_string(&json).unwrap());
             println!("Time elapsed: {:?}", sys_time.elapsed().unwrap());
 
             // clear the vectors
@@ -315,8 +313,8 @@ fn main() {
                 println!("Watchdog CPU Error total (detected): {}", watchdog_detected_vec.len());
                 println!("All errors: {}", all_errors_vec.len());
                 // println!("{}", serde_json::encode(&watchdog_detected_vec));
-                println!("First item in watchdog queue: {}", first(&watchdog_detected_vec).unwrap());
-                println!("Last item in watchdog queue: {}", last(&watchdog_detected_vec).unwrap());
+                // println!("First item in watchdog queue: {:?}", first(&watchdog_detected_vec).expect("None"));
+                // println!("Last item in watchdog queue: {:?}", last(&watchdog_detected_vec).expect("None"));
             }
     
         }

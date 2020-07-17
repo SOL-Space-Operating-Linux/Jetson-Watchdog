@@ -1,0 +1,51 @@
+{"all_errors_vec":[2121821.75,3011179.0,2121821.75,3072256.75,2121821.75,3072514.25,2121821.75,3072558.25,3072568.0,3072572.5,3072574.25,2121821.75,3072804.5,3072838.75,3072840.75,null],
+"cce_machine_vec":[null],
+"cpu_mem_vec":[null],
+"flash_read_vec":[null],
+"flash_write_vec":[null],
+"gpu_l2_vec":[null],
+"mmu_fault_vec":[null],
+"sbe_err_vec":[2988320.75,3011179.0,2988320.75,3072256.75,2988320.75,3072514.25,2988320.75,3072558.25,3072568.0,3072572.5,3072574.25,2988320.75,3072804.5,3072838.75,3072840.75,null],
+"serror_vec":[null],
+"watchdog_detected_vec":[2121821.75,2901814.0,2121821.75,2901814.0,2121821.75,2901814.0,2121821.75,2901814.0,2121821.75,2901814.0,null]}
+
+{   "all_errors_vec":[2121821.75,null],
+    "cce_machine_vec":[null],
+    "cpu_mem_vec":[null],
+    "flash_read_vec":[null],
+    "flash_write_vec":[null],
+    "gpu_l2_vec":[null],
+    "mmu_fault_vec":[null],
+    "sbe_err_vec":[2988320.75,null],
+    "serror_vec":[null],
+    "watchdog_detected_vec":[2121821.75,2, null]}
+
+{   "all_errors_vec":[2121821.75, 2988320.87, 45], // if no errors, don't write
+
+    "cce_machine_vec":[7],
+    "cpu_mem_vec":[5],
+    "flash_read_vec":[null],
+    "flash_write_vec":[null],
+    "gpu_l2_vec":[null],
+    "mmu_fault_vec":[null],
+    "sbe_err_vec":[2988320.75,null],
+    "serror_vec":[null],
+    "watchdog_detected_vec":[2121821.75,2, null]}
+
+{   "all_errors_vec":[2121821.75,null],
+    "cce_machine_vec":[null],
+    "cpu_mem_vec":[null],
+    "flash_read_vec":[null],
+    "flash_write_vec":[null],
+    "gpu_l2_vec":[null],
+    "mmu_fault_vec":[null],
+    "sbe_err_vec":[2988320.75,null],
+    "serror_vec":[null],
+    "watchdog_detected_vec":[2121821.75,2, null]}
+
+    append a new json to each file
+    only the all-errors vector has timestamps, everything else has counts of how many timestamps they had had
+    Save the last timestamp from each message in log daemon and then in main, to compare against if dmesg goes down and then comes up again, preventing double-counting 
+    If main dies then it will stop kicking a GPIO pin, no need to monitor it specifically
+    
+        

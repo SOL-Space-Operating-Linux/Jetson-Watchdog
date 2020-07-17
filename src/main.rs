@@ -190,9 +190,8 @@ fn main() {
             println!("Timer interrupt detected!");
 
             if all_errors_vec.len() > 0 {
-            // create a json object using the first and last contents of the all errors vector, and an incidence count of others
-            // append to file 
                 println!("Making new json");
+            // create a json object, append to file                 
                 let mut new_json = json!({
                     "all_errors_duration": [first(&all_errors_vec), last(&all_errors_vec)],
                     "sbe_err_vec": sbe_err_vec.len(),
@@ -211,12 +210,11 @@ fn main() {
                                     .create(true)
                                     .append(true)
                                     .read(true)
-                                    .open(todays_date.to_string())
-                                    // .open("test.json")
+                                    .open(todays_date.to_string()) // year-month-date hour-minute-second.json
                                     .expect("Unable to open file");
 
                 let json = serde_json::to_string(&new_json).unwrap();
-                // write out to the file-- destroy the old contents?            
+                // append to the file           
                 file.write_all(json.as_bytes()).expect("unable to write out to file");
                 println!("Time elapsed: {:?}", sys_time.elapsed().unwrap());
     
@@ -282,7 +280,6 @@ fn main() {
             // }
 
         }
-    
     }
         //start watchdog daemon
 }

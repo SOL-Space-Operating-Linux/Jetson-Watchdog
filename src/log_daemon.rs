@@ -36,9 +36,9 @@ pub fn startup (dmesg_sender: crossbeam_channel::Sender<String>, dmesg_child: &m
         } // end of line processing
         // If child dies, kill this loop and tell main that we lost the process.
         match dmesg_child.try_wait() {
-            Ok(Some(status)) => {println!("exited with: {}", status); dmesg_sender.try_send("Lost dmesg process".to_owned()).unwrap(); break;},
+            Ok(Some(status)) => {println!("exited with: {}", status); dmesg_sender.try_send("Lost dmesg process".to_owned()).unwrap(); return;},
             Ok(None) => break,
-            Err(e) => {println!("error attempting to wait: {}", e);  dmesg_sender.try_send("Lost dmesg process".to_owned()).unwrap(); break;}, // is 'return' better than 'break'?
+            Err(e) => {println!("error attempting to wait: {}", e);  dmesg_sender.try_send("Lost dmesg process".to_owned()).unwrap(); return;}, // is 'return' better than 'break'?
         }
     } // end of while
 

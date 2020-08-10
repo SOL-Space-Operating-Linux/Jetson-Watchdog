@@ -17,16 +17,15 @@ use chrono::{Datelike, Timelike, Utc};
 use std::{thread, time, fs, io::Read};
 use std::io::Write;
 use std::process::{Command, Stdio};
-// use nix::sys::wait::waitpid;
-// use nix::unistd::{fork, getpid, getppid, ForkResult};
-
+use nix::sys::wait::waitpid;
+use nix::unistd::{fork, getpid, getppid, ForkResult};
 
 // USAGE: sudo ~/jetson-watchdog
 
 //global check register
 
 /*------------------ HELPER FUNCTIONS --------------------*/
-/*Function that returns the first element of a vector without destroying it*/
+/* Function that returns the first element of a vector without destroying it */
 fn first<T>(v: &Vec<T>) -> Option<&T> {
     if !v.is_empty() {
         serde::export::Some(v.first().unwrap())
@@ -35,7 +34,7 @@ fn first<T>(v: &Vec<T>) -> Option<&T> {
         return None
     }
 }
-/*Function that returns the last element of a vector without destroying it*/
+/* Function that returns the last element of a vector without destroying it */
 fn last<T>(v: &Vec<T>) -> Option<&T> {
     if !v.is_empty() {
         serde::export::Some(v.last().unwrap())
@@ -44,33 +43,6 @@ fn last<T>(v: &Vec<T>) -> Option<&T> {
         return None
     }
 
-}
-/* Function that merges two structs, with the second struct overriding the first if there's a conflict */
-fn merge(a: &mut Value, b: &Value) {
-    match (a, b) {
-        (&mut Value::Object(ref mut a), &Value::Object(ref b)) => {  // If there are objects in both, then clone a's key and send a call to recurse
-        
-            for (k, v) in b {
-                merge(a.entry(k.clone()).or_insert(Value::Null), v);
-            }
-        }
-        (a, b) => { // upon recursing, if a has that key, then it receives a copy of b's 
-            let mut a_vec: Vec<_> = vec![a.clone()].as_slice().to_vec();
-            let mut b_vec: Vec<_> = vec![b.clone()].as_slice().to_vec();   
-            if a.is_array() {
-                a_vec = a.as_array().unwrap().to_vec();
-            }
-            if b.is_array() {
-                b_vec = b.as_array().unwrap().to_vec();
-            }
-            if !b.is_null(){
-                a_vec.append(&mut b_vec); //works but not completely
-                // a_vec.sort();
-                a_vec.dedup();
-                *a = serde_json::to_value(a_vec).unwrap();
-            }
-        }
-    }
 }
 /*Function to be called on a thread that sleeps for one second and then sends a message to the receiver */
 fn taskmaster_thread(sender: crossbeam_channel::Sender<String>) {
@@ -89,39 +61,26 @@ fn main() {
         // Generate, format and assemble the current date string in UTC
         let now = Utc::now();
         let (is_common_era, year) = now.year_ce();
-        let todays_date = 
-        format!("{}-{:0>2}-{:0>2} {:0>2}:{:0>2}:{:0>2}.json", 
-            year.to_string(),
-            now.month().to_string(),
-            now.day().to_string(),
-            now.hour().to_string(),
-            now.minute().to_string(),
-            now.second().to_string());
+        let mut todays_date = format!("./error-logs/{}-{:0>2}-{:0>2}_{:0>2}:{:0>2}:{:0>2}.json", 
+                            year.to_string(),
+                            now.month().to_string(),
+                            now.day().to_string(),
+                            now.hour().to_string(),
+                            now.minute().to_string(),
+                            now.second().to_string());
+
 
         let mut last_error_timestamp:f32 = 0.0;
 
-        // // open today's file, creating it if it doesn't exist
-        // let file = fs::OpenOptions::new()
-        //         .read(true)
-        //         .write(true)
-        //         .create(true)
-        //         .open(todays_date);
-// TODO: Output to JSON
-
-
-        // Open a log file with that name
-        // let contents = fs::read_to_string(filename)
-        //     .expect("Something went wrong reading the log");
-        //  FIXME: add a daily check to make a new one every day?
-        //  - use same one each day, have Main bark to dmesg to say it rebooted (should be obvious)
-
         // Discard oldest log after thirty days
-        //  -best way is with linux command: 'find /var/log -name "*.json" -type f -mtime +30 -exec rm -f {} \;'
-        // but there is also a way to do this with chrono library's signed_duration_since command, where we can specify older than 30 days
-        // and use std::fs::read_dir to list all the files in the output log's directory 
-        // see https://doc.rust-lang.org/std/fs/fn.read_dir.html
 
-
+        let rotate_logs =   Command::new("find")
+                                    .arg("./error-logs")
+                                    .arg("-mtime")
+                                    .arg("+30")
+                                    .arg("-delete")
+                                    .spawn()
+                                    .expect("Failed to rotate logs");
 
     //load config, use flight defaults if no file, or parts missing
 
@@ -155,14 +114,14 @@ fn main() {
 
 /* This portion of the program creates the dmesg -w thread and then spawns a process, log_daemon, which watches that thread*/
 // TODO: This needs to return some value to show that log_daemon, or dmesg, died.     
-// Set up thread builder; this will let us capture an io::Result if the OS fails to create it
-    let dmesg_builder = thread::Builder::new();
     let sender = s.clone(); // clone the sender to send off to the thread
+    let dmesg_sender = s.clone();
+    
         // TODO: capture OS failure to create the thread 
     let mut dmesg_child = match Command::new("dmesg")
-        .arg("-w")
-        .stdout(Stdio::piped())
-        .spawn()
+                                    .arg("-w")
+                                    .stdout(Stdio::piped())
+                                    .spawn()
         {
             Ok(child) => child,
             Err(_) => {
@@ -170,22 +129,26 @@ fn main() {
                 return; // head home early 
             }
         };
-
+    // Set up thread builder; this will let us capture an io::Result if the OS fails to create it
+    let dmesg_builder = thread::Builder::new();
     let logdaemon_handle = dmesg_builder.spawn(move || {
         log_daemon::startup(sender, &mut dmesg_child); // a separate thread launches this. 
-    }).unwrap();
+    }); // transfers ownership of the thread to log_daemon process
+
 /*-------------End log_daemon section-----------*/
 
 // Create a thread which serves as the heartbeat, sleeping and then periodically sending a message
     let interrupt_builder = thread::Builder::new();
     let interrupt_sender = s.clone(); // clone the sender to send off to the thread
-    let taskmaster_timer = interrupt_builder.spawn(move || {
+    let taskmaster_timer = interrupt_builder.spawn( || {
         taskmaster_thread(interrupt_sender);
     }).unwrap();
     // TODO: This needs to return some value to show that it, or dmesg, died. 
+
     let sys_time = time::SystemTime::now();
     loop {  //-------------BEGIN MAIN LOOP-----------------
         let our_string = receiver.recv().unwrap().to_string(); // this blocks until there is a message on the channel.
+
         if our_string.eq("Timer interrupt") {
             println!("Timer interrupt detected!");
 
@@ -210,7 +173,7 @@ fn main() {
                                     .create(true)
                                     .append(true)
                                     .read(true)
-                                    .open(todays_date.to_string()) // year-month-date hour-minute-second.json
+                                    .open(todays_date.to_string()) // ./error-logs/year-month-date hour-minute-second.json
                                     .expect("Unable to open file");
 
                 let json = serde_json::to_string(&new_json).unwrap();
@@ -258,6 +221,12 @@ fn main() {
                 }
             }
         }
+        else if our_string.eq("Lost dmesg process"){
+            // match logdaemon_handle.unwrap().join() {
+            //     Ok(_) => {println!("Logdaemon exited");},
+            //     Err(e) => {println!("error attempting to wait on log_daemon: ");}, // is 'return' better than 'break'?
+            // }
+        }
         else {
             // This works, but needs a way to not double-count all of the timestamps. 
             // TODO: Make a cleanup function. 
@@ -280,6 +249,13 @@ fn main() {
             // }
 
         }
+        // If child dies, kill this loop and tell main that we lost the process.
+        // match dmesg_child.try_wait() {
+        //     Ok(Some(status)) => {println!("exited with: {}", status); dmesg_sender.try_send("Lost dmesg process".to_owned()).unwrap(); break;},
+        //     Ok(None) => break,
+        //     Err(e) => {println!("error attempting to wait: {}", e);  dmesg_sender.try_send("Lost dmesg process".to_owned()).unwrap(); break;}, // is 'return' better than 'break'?
+        // }
     }
+
         //start watchdog daemon
 }

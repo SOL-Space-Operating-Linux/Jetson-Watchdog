@@ -1,6 +1,6 @@
+/* Function that merges two structs, with the second struct overriding the first if there's a conflict */
 fn merge(a: &mut Value, b: &Value) {
     match (a, b) {
-    
         (&mut Value::Object(ref mut a), &Value::Object(ref b)) => {  // If there are objects in both, then clone a's key and send a call to recurse
         
             for (k, v) in b {
@@ -8,28 +8,20 @@ fn merge(a: &mut Value, b: &Value) {
             }
         }
         (a, b) => { // upon recursing, if a has that key, then it receives a copy of b's 
-            // *a = b.clone(); //original
-            let mut a_vec: Vec<String> = from_value(a.clone()).unwrap();
-            let mut b_vec: Vec<String> = from_value(b.clone()).unwrap();
-            // let mut b_vec = vec![b.clone()].as_slice().to_vec();
-            
-            for element in a_vec.to_vec().iter() {
-                b_vec.push(element.clone());
+            let mut a_vec: Vec<_> = vec![a.clone()].as_slice().to_vec();
+            let mut b_vec: Vec<_> = vec![b.clone()].as_slice().to_vec();   
+            if a.is_array() {
+                a_vec = a.as_array().unwrap().to_vec();
             }
-            
-            // a_vec.extend_from_slice(&b_vec); //works but not completely
-            
-            // let mut output_temp = vec![vec![a.clone().extend_from_slice()].as_slice(),vec![b.clone()].as_slice()].concat();
-            // let mut b_temp = vec![b.clone()];
-            // let mut output_temp: Vec<String> = from_value(a.clone()).unwrap();
-            // let mut b_temp: Vec<String> = from_value(b.clone()).unwrap();            println!("{:?}", output_temp);
-            // println!("{:?}", b_temp);
-            // output_temp.append(&mut b_temp);
-            
-            println!("{:?}", b_vec);
-            *a = serde_json::to_value(b_vec).unwrap();
-            // *a = serde_json::Value::Array(b_vec.to_vec().clone());
-
+            if b.is_array() {
+                b_vec = b.as_array().unwrap().to_vec();
+            }
+            if !b.is_null(){
+                a_vec.append(&mut b_vec); //works but not completely
+                // a_vec.sort();
+                a_vec.dedup();
+                *a = serde_json::to_value(a_vec).unwrap();
+            }
         }
     }
 }

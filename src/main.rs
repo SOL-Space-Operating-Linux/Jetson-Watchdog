@@ -53,6 +53,7 @@ fn taskmaster_thread(sender: crossbeam_channel::Sender<String>) {
         thread::sleep(one_second);
         sender.try_send(message.to_string()).unwrap();
     }
+    //kick GPIO pin
 }
 
 /*---------------MAIN--------------------*/
@@ -100,8 +101,8 @@ fn main() {
     
  //   watchdog_daemon::start_watchdog_daemon();
 
-    println!("Daemon Started!!!");
     //check # resets to see aliveness, compare against previous baselines, log diffs
+
     //update new baseline, # resets
 
 /* -----------------------------------------LOG DAEMON WORK AREA----------------------------------------------*/
@@ -126,7 +127,7 @@ fn main() {
     let sender = s.clone(); // clone the sender to send off to the thread
     let dmesg_sender = s.clone();
     
-        // TODO: capture OS failure to create the thread 
+    // TODO: capture OS failure to create the thread 
     let mut dmesg_child = match Command::new("dmesg")
                                     .arg("-w")
                                     .stdout(Stdio::piped())
@@ -152,18 +153,16 @@ fn main() {
     let taskmaster_timer = interrupt_builder.spawn( || {
         taskmaster_thread(interrupt_sender);
     }).unwrap();
-    // TODO: This needs to return some value to show that it, or dmesg, died. 
+    // This thread is the heartbeat, and needs to be the one that kicks the GPIO. 
 
     let sys_time = time::SystemTime::now();
     loop {  //-------------BEGIN MAIN LOOP-----------------
         let our_string = receiver.recv().unwrap().to_string(); // this blocks until there is a message on the channel.
 
         if our_string.eq("Timer interrupt") {
-            println!("Timer interrupt detected!");
-
+            // println!("Timer interrupt detected!");
             if all_errors_vec.len() > 0 {
-                println!("Making new json");
-            // create a json object, append to file                 
+                // create a json object, append to file                 
                 let mut new_json = json!({
                         "all_errors_duration": [first(&all_errors_vec), last(&all_errors_vec)],
                         "sbe_err_vec": sbe_err_vec.len(),
@@ -176,8 +175,7 @@ fn main() {
                         "flash_read_vec": flash_read_vec.len(),
                         "watchdog_detected_vec":watchdog_detected_vec.len() 
                 });
-
-                // Open file
+                // Open file, move cursor one up from the end for append
                 let mut file = fs::OpenOptions::new()
                                     .read(true)
                                     .write(true)
@@ -186,16 +184,15 @@ fn main() {
                                     .expect("Unable to open file");
                 file.seek(std::io::SeekFrom::End(-1)).unwrap();
                 let mut json = serde_json::to_string(&new_json).unwrap();
-                json.push('}');
-                let file_metadata = file.metadata().unwrap();
+                json.push('}'); // needed to maintain JSON formatting in the output file when this object is written
                 // if filesize is larger than 2, first insert a comma. Otherwise, this is the first object in the file. 
+                let file_metadata = file.metadata().unwrap();
                 if file_metadata.len() > 2 {                    
-                    println!("the file already has a json in it!");
                     write!(&file,",").expect("Unable to write to file");
-                    // file.seek(std::io::SeekFrom::End(-1)).unwrap();
                 }
-                write!(&file, "\"{:?}\":", first(&all_errors_vec).unwrap()).expect("unable to write out to file");
-                // append to the file           
+
+                // append to the file     
+                write!(&file, "\"{:?}\":", first(&all_errors_vec).unwrap()).expect("unable to write out to file");      
                 file.write_all(json.as_bytes()).expect("unable to write out to file");
                 println!("Time elapsed: {:?}", sys_time.elapsed().unwrap());
     
@@ -235,7 +232,6 @@ fn main() {
                         "watchdog detected" =>      {watchdog_detected_vec.push(timestamp);},
                         _ =>                         continue, // default case
                     }
-                    // println!("All errors: {}", all_errors_vec.len());
                 }
             }
         }
@@ -274,6 +270,4 @@ fn main() {
         //     Err(e) => {println!("error attempting to wait: {}", e);  dmesg_sender.try_send("Lost dmesg process".to_owned()).unwrap(); break;}, // is 'return' better than 'break'?
         // }
     }
-
-        //start watchdog daemon
 }

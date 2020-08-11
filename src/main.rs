@@ -79,7 +79,7 @@ fn main() {
     // append to the file           
     write!(&file,"{{}}").expect("unable to write out to file");
 
-    let mut last_error_timestamp:f32 = 0.0;
+    let mut last_error_timestamp: f64 = 0.0;
 
     // Discard oldest log after thirty days
 
@@ -108,16 +108,16 @@ fn main() {
     // Create the regex for local parse and sort use 
     let re = Regex::new(r"(\[.?[0-9]+\.[0-9]+\])(.*?)(SBE ERR|SError detected|CPU Memory Error|Machine Check Error|GPU L2|generated a mmu fault|SDHCI_INT_DATA_TIMEOUT|Timeout waiting for hardware interrupt|watchdog detected)").unwrap();
     // Create the vectors to hold timestamps
-    let mut all_errors_vec: Vec<f32> = Vec::new();
-    let mut sbe_err_vec: Vec<f32> = Vec::new();
-    let mut serror_vec: Vec<f32> = Vec::new();
-    let mut cpu_mem_vec: Vec<f32> = Vec::new(); 
-    let mut cce_machine_vec: Vec<f32> = Vec::new(); 
-    let mut gpu_l2_vec: Vec<f32> = Vec::new();
-    let mut mmu_fault_vec: Vec<f32> = Vec::new(); 
-    let mut flash_write_vec: Vec<f32> = Vec::new(); 
-    let mut flash_read_vec: Vec<f32> = Vec::new(); 
-    let mut watchdog_detected_vec: Vec<f32> = Vec::new(); 
+    let mut all_errors_vec: Vec<f64> = Vec::new();
+    let mut sbe_err_vec: Vec<f64> = Vec::new();
+    let mut serror_vec: Vec<f64> = Vec::new();
+    let mut cpu_mem_vec: Vec<f64> = Vec::new(); 
+    let mut cce_machine_vec: Vec<f64> = Vec::new(); 
+    let mut gpu_l2_vec: Vec<f64> = Vec::new();
+    let mut mmu_fault_vec: Vec<f64> = Vec::new(); 
+    let mut flash_write_vec: Vec<f64> = Vec::new(); 
+    let mut flash_read_vec: Vec<f64> = Vec::new(); 
+    let mut watchdog_detected_vec: Vec<f64> = Vec::new(); 
     //Set up channels, send the receiver over to log_daemon to communicate back
     let (s, receiver) = unbounded();
 
@@ -217,7 +217,7 @@ fn main() {
             for cap in re.captures_iter(&our_string) {
                 let error_type = cap.get(3).unwrap().as_str(); // take the third argument of the regex, which is the error message
                 let raw_timestamp = cap.get(1).unwrap().as_str().replace("[", "").replace("]", "").replace(" ", ""); // take the timestamp
-                let timestamp = raw_timestamp.parse::<f32>().unwrap(); // FIXME: can we process this as a string?
+                let timestamp = raw_timestamp.parse::<f64>().unwrap(); // FIXME: can we process this as a string?
                 // Check if this is a repeat dmesg feed from the thread being respawned
                 if timestamp > last_error_timestamp {
                     last_error_timestamp = timestamp;

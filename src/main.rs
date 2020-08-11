@@ -14,9 +14,10 @@ use serde::{Serialize, Deserialize};
 use regex::Regex;
 use crossbeam_channel::unbounded;
 use chrono::{Datelike, Timelike, Utc};
-use std::{thread, time, fs, io::Read};
-use std::io::Write;
+use std::{thread, time, fs, fs::File};
+use std::io::{prelude::*, Seek, Read, Write, SeekFrom};
 use std::process::{Command, Stdio};
+
 use nix::sys::wait::waitpid;
 use nix::unistd::{fork, getpid, getppid, ForkResult};
 
@@ -47,7 +48,7 @@ fn last<T>(v: &Vec<T>) -> Option<&T> {
 /*Function to be called on a thread that sleeps for one second and then sends a message to the receiver */
 fn taskmaster_thread(sender: crossbeam_channel::Sender<String>) {
     let message = "Timer interrupt";
-    let one_second = time::Duration::from_secs(1);
+    let one_second = time::Duration::from_secs(5);
     loop {
         thread::sleep(one_second);
         sender.try_send(message.to_string()).unwrap();
@@ -57,30 +58,38 @@ fn taskmaster_thread(sender: crossbeam_channel::Sender<String>) {
 /*---------------MAIN--------------------*/
 
 fn main() {
-    //TODO: Put this in its own function
-        // Generate, format and assemble the current date string in UTC
-        let now = Utc::now();
-        let (is_common_era, year) = now.year_ce();
-        let mut todays_date = format!("./error-logs/{}-{:0>2}-{:0>2}_{:0>2}:{:0>2}:{:0>2}.json", 
-                            year.to_string(),
-                            now.month().to_string(),
-                            now.day().to_string(),
-                            now.hour().to_string(),
-                            now.minute().to_string(),
-                            now.second().to_string());
+//TODO: Put this in its own function
+    // Generate, format and assemble the current date string in UTC
+    let now = Utc::now();
+    let (is_common_era, year) = now.year_ce();
+    let mut todays_date = format!("./error-logs/{}-{:0>2}-{:0>2}_{:0>2}:{:0>2}:{:0>2}.json", 
+                        year.to_string(),
+                        now.month().to_string(),
+                        now.day().to_string(),
+                        now.hour().to_string(),
+                        now.minute().to_string(),
+                        now.second().to_string());
+                // Open file
+    let mut file = fs::OpenOptions::new()
+                        .read(true)                        
+                        .write(true)                        
+                        .create(true)
+                        .open(todays_date.to_string()) // ./error-logs/year-month-date hour-minute-second.json
+                        .expect("Unable to open file");
+    // append to the file           
+    write!(&file,"{{}}").expect("unable to write out to file");
 
+    let mut last_error_timestamp:f32 = 0.0;
 
-        let mut last_error_timestamp:f32 = 0.0;
+    // Discard oldest log after thirty days
 
-        // Discard oldest log after thirty days
-
-        let rotate_logs =   Command::new("find")
-                                    .arg("./error-logs")
-                                    .arg("-mtime")
-                                    .arg("+30")
-                                    .arg("-delete")
-                                    .spawn()
-                                    .expect("Failed to rotate logs");
+    let rotate_logs =   Command::new("find")
+                                .arg("./error-logs")
+                                .arg("-mtime")
+                                .arg("+30")
+                                .arg("-delete")
+                                .spawn()
+                                .expect("Failed to rotate logs");
 
     //load config, use flight defaults if no file, or parts missing
 
@@ -156,27 +165,36 @@ fn main() {
                 println!("Making new json");
             // create a json object, append to file                 
                 let mut new_json = json!({
-                    "all_errors_duration": [first(&all_errors_vec), last(&all_errors_vec)],
-                    "sbe_err_vec": sbe_err_vec.len(),
-                    "serror_vec" : serror_vec.len(),
-                    "cpu_mem_vec": cpu_mem_vec.len(),
-                    "cce_machine_vec": cce_machine_vec.len(),
-                    "gpu_l2_vec": gpu_l2_vec.len(),
-                    "mmu_fault_vec": mmu_fault_vec.len(),
-                    "flash_write_vec": flash_write_vec.len(),
-                    "flash_read_vec": flash_read_vec.len(),
-                    "watchdog_detected_vec":watchdog_detected_vec.len()
+                        "all_errors_duration": [first(&all_errors_vec), last(&all_errors_vec)],
+                        "sbe_err_vec": sbe_err_vec.len(),
+                        "serror_vec" : serror_vec.len(),
+                        "cpu_mem_vec": cpu_mem_vec.len(),
+                        "cce_machine_vec": cce_machine_vec.len(),
+                        "gpu_l2_vec": gpu_l2_vec.len(),
+                        "mmu_fault_vec": mmu_fault_vec.len(),
+                        "flash_write_vec": flash_write_vec.len(),
+                        "flash_read_vec": flash_read_vec.len(),
+                        "watchdog_detected_vec":watchdog_detected_vec.len() 
                 });
 
                 // Open file
                 let mut file = fs::OpenOptions::new()
-                                    .create(true)
-                                    .append(true)
                                     .read(true)
+                                    .write(true)
+                                    .create(true)                                    
                                     .open(todays_date.to_string()) // ./error-logs/year-month-date hour-minute-second.json
                                     .expect("Unable to open file");
-
-                let json = serde_json::to_string(&new_json).unwrap();
+                file.seek(std::io::SeekFrom::End(-1)).unwrap();
+                let mut json = serde_json::to_string(&new_json).unwrap();
+                json.push('}');
+                let file_metadata = file.metadata().unwrap();
+                // if filesize is larger than 2, first insert a comma. Otherwise, this is the first object in the file. 
+                if file_metadata.len() > 2 {                    
+                    println!("the file already has a json in it!");
+                    write!(&file,",").expect("Unable to write to file");
+                    // file.seek(std::io::SeekFrom::End(-1)).unwrap();
+                }
+                write!(&file, "\"{:?}\":", first(&all_errors_vec).unwrap()).expect("unable to write out to file");
                 // append to the file           
                 file.write_all(json.as_bytes()).expect("unable to write out to file");
                 println!("Time elapsed: {:?}", sys_time.elapsed().unwrap());
@@ -217,7 +235,7 @@ fn main() {
                         "watchdog detected" =>      {watchdog_detected_vec.push(timestamp);},
                         _ =>                         continue, // default case
                     }
-                    println!("All errors: {}", all_errors_vec.len());
+                    // println!("All errors: {}", all_errors_vec.len());
                 }
             }
         }

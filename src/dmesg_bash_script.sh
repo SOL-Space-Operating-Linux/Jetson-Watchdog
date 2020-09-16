@@ -4,6 +4,8 @@
 # This script is to simulate radiation damage to a board. It will randomly pick an error 
 # and then pick a random number of times to repeat it, spaced out in random milliseconds
 # and output that to dmesg on a constant loop until killed. Must be run in sudo.
+# 
+# USAGE: sudo ./dmesg_bash_script.sh
 
 do_on_exit(){
     echo 'NOTIFICATION: dmesg_bash_script.sh stopped by CTRL-C signal' > /dev/kmsg

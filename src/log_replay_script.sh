@@ -3,7 +3,7 @@
 # Amanda Voegtlin SIE-3 05/2020
 # Script which reads a log file from the command line, parses the timestamps at the beginning of each line,
 # subtracts the difference in times since the last timestamp, and waits that long to print the current one.  
-
+# 
 # USAGE: sudo ./log_replay_script.sh [logfile.txt]
 
 
@@ -25,28 +25,24 @@ firstline=$(head -n 1 $1)
     else
         firsttime=""
     fi
-    # echo $firsttime # debug to ensure regex is working
-
-while IFS= read -r line || [[ -n "$line" ]]; do #  on every line, do this 
-    # echo "Text read from file: $line" #debug
-    [[ "$line" =~ $REGEXP ]]
-        if [[ $line =~ $REGEXPNOBRACKET ]]; then
-            timestamp=${BASH_REMATCH}
-            echo $timestamp
-            if [[ -z $firsttime ]]; then 
-                $firsttime = $timestamp
-                echo $firsttime
+{
+    while IFS= read -r line || [[ -n "$line" ]] 
+    do #  on every line, do this 
+        [[ "$line" =~ $REGEXP ]]
+            if [[ $line =~ $REGEXPNOBRACKET ]]; then
+                timestamp=${BASH_REMATCH}
+                if [[ -z $firsttime ]]; then 
+                    firsttime=$timestamp
+                fi
+                waittime=$(echo "$timestamp-$firsttime" | bc) # this variable is destroyed by the subshell on every loop due to this pipe
+                if [[ -z $waittime ]]; then
+                    waittime=0.01
+                fi
+                firsttime=$timestamp
+                sleep ${waittime}s
+                # Sed throws an error if it encounters "printk message dropped", but still sends the message 
+                echo $line | sed "s/..$timestamp.//g" > /dev/kmsg # this line needs to be stripped of its timestamp before it goes into dmesg
             fi
-            waittime=$(echo "$timestamp-$firsttime" | bc) # this variable is destroyed by the subshell on every loop due to this pipe
-            if [[ -z $waittime ]]; then
-                $waittime = 0.01
-            fi
-            firsttime=$timestamp
-            sleep ${waittime}s
-            echo $line | sed "s/..$timestamp.//g" > /dev/kmsg # this line needs to be stripped of its timestamp before it goes into dmesg
-            # echo $line
-            # echo $line | sed "s/..$timestamp.//g"
-            # echo ${BASH_REMATCH}
-        fi
 
-done < "$filename"
+    done
+} < "$filename" 

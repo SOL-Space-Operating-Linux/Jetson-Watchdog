@@ -23,32 +23,13 @@ use nix::unistd::{fork, getpid, getppid, ForkResult};
 
 // USAGE: sudo ~/jetson-watchdog
 
-//global check register
+//TODO: global check register
 
 /*------------------ HELPER FUNCTIONS --------------------*/
-/* Function that returns the first element of a vector without destroying it */
-fn first<T>(v: &Vec<T>) -> Option<&T> {
-    if !v.is_empty() {
-        serde::export::Some(v.first().unwrap())
-    }
-    else {
-        return None
-    }
-}
-/* Function that returns the last element of a vector without destroying it */
-fn last<T>(v: &Vec<T>) -> Option<&T> {
-    if !v.is_empty() {
-        serde::export::Some(v.last().unwrap())
-    }
-    else {
-        return None
-    }
-
-}
 /*Function to be called on a thread that sleeps for one second and then sends a message to the receiver */
 fn taskmaster_thread(sender: crossbeam_channel::Sender<String>) {
     let message = "Timer interrupt";
-    let one_second = time::Duration::from_secs(5);
+    let one_second = time::Duration::from_secs(1);
     loop {
         thread::sleep(one_second);
         sender.try_send(message.to_string()).unwrap();
@@ -160,11 +141,11 @@ fn main() {
         let our_string = receiver.recv().unwrap().to_string(); // this blocks until there is a message on the channel.
 
         if our_string.eq("Timer interrupt") {
-            // println!("Timer interrupt detected!");
+            // println!("Timer interrupt detected! All errors length was {}", all_errors_vec.len());
             if all_errors_vec.len() > 0 {
                 // create a json object, append to file                 
                 let mut new_json = json!({
-                        "all_errors_duration": [first(&all_errors_vec), last(&all_errors_vec)],
+                        "all_errors_duration": [format!("{}",all_errors_vec[0]), format!("{}", all_errors_vec[all_errors_vec.len()-1])],//[first(&all_errors_vec), last(&all_errors_vec)],
                         "sbe_err_vec": sbe_err_vec.len(),
                         "serror_vec" : serror_vec.len(),
                         "cpu_mem_vec": cpu_mem_vec.len(),
@@ -182,19 +163,21 @@ fn main() {
                                     .create(true)                                    
                                     .open(todays_date.to_string()) // ./error-logs/year-month-date hour-minute-second.json
                                     .expect("Unable to open file");
+
                 file.seek(std::io::SeekFrom::End(-1)).unwrap();
                 let mut json = serde_json::to_string(&new_json).unwrap();
                 json.push('}'); // needed to maintain JSON formatting in the output file when this object is written
                 // if filesize is larger than 2, first insert a comma. Otherwise, this is the first object in the file. 
                 let file_metadata = file.metadata().unwrap();
                 if file_metadata.len() > 2 {                    
-                    write!(&file,",").expect("Unable to write to file");
+                    write!(&file,",\n").expect("Unable to write to file");
                 }
 
                 // append to the file     
-                write!(&file, "\"{:?}\":", first(&all_errors_vec).unwrap()).expect("unable to write out to file");      
+                write!(&file, "\n\"{:?}\":\n", all_errors_vec[0]).expect("unable to write out to file");      
                 file.write_all(json.as_bytes()).expect("unable to write out to file");
                 println!("Time elapsed: {:?}", sys_time.elapsed().unwrap());
+                println!("Timer interrupt detected! All errors length was {}", all_errors_vec.len());
     
                 // clear the vectors
                 all_errors_vec.clear(); 

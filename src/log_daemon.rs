@@ -30,7 +30,7 @@ pub fn startup (dmesg_sender: crossbeam_channel::Sender<String>, dmesg_child: &m
         for line in lines { 
             let our_string = line.unwrap().to_string(); // string type so we can run it through regex
             for cap in re.captures_iter(&our_string) {
-                println!("LOG_DAEMON Sending: {}", cap.get(0).unwrap().as_str().to_string());
+                // println!("LOG_DAEMON Sending: {}", cap.get(0).unwrap().as_str().to_string());
                 dmesg_sender.try_send(cap.get(0).unwrap().as_str().to_string()).unwrap(); //either send a message into the channel immediately or return an error if the channel is full or disconnected. The returned error contains the original message.
             }       
         } // end of line processing
